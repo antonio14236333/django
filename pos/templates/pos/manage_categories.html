@@ -1,0 +1,44 @@
+{% extends "base.html" %}
+{% block content %}
+<h4>Administrar Categorías</h4>
+<div class="row g-3">
+  <div class="col-md-4">
+    <div class="card">
+      <div class="card-header">Nueva categoría</div>
+      <div class="card-body">
+        <form method="post">{% csrf_token %}
+          {{ form.as_p }}
+          <button class="btn btn-primary w-100">Guardar</button>
+        </form>
+      </div>
+    </div>
+  </div>
+  <div class="col-md-8">
+    <div class="card">
+      <div class="card-header">Listado</div>
+      <div class="card-body">
+        <table class="table table-sm align-middle">
+          <thead><tr><th>Nombre</th><th>Activa</th><th class="text-end">Acciones</th></tr></thead>
+          <tbody>
+          {% for c in categories %}
+            <tr>
+              <td>{{ c.name }}</td>
+              <td>{{ c.active|yesno:"Sí,No" }}</td>
+              <td class="text-end">
+                <form method="post" action="{% url 'pos:delete_category' c.id %}" onsubmit="return confirm('¿Eliminar categoría?')">
+                  {% csrf_token %}
+                  <button class="btn btn-sm btn-outline-danger">Eliminar</button>
+                </form>
+              </td>
+            </tr>
+          {% empty %}
+            <tr><td colspan="3" class="text-center text-muted">Sin categorías.</td></tr>
+          {% endfor %}
+          </tbody>
+        </table>
+        <div class="text-muted">* No podrás eliminar una categoría con productos (por protección).</div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
