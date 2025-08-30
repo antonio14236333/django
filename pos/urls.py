@@ -12,7 +12,7 @@ urlpatterns = [
     path("checkout/", views.checkout, name="checkout"),
     path("history/", views.history_view, name="history"),
 
-    # Gestión (staff)
+
     path("manage/categories/", views.manage_categories, name="manage_categories"),
     path("manage/categories/<int:pk>/delete/", views.delete_category, name="delete_category"),
     path("manage/products/", views.manage_products, name="manage_products"),

@@ -1,47 +1,97 @@
 <!doctype html>
-<html lang="es">
+<html lang="es" data-bs-theme="auto">
 <head>
   <meta charset="utf-8">
   <title>POS Django</title>
   <meta name="viewport" content="width=device-width, initial-scale=1">
+  <!-- Bootstrap -->
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
-  <style>.money-btns button{margin:.25rem}.product-card{cursor:pointer}</style>
+  <style>
+    :root{
+      --pos-primary: #4f46e5; /* indigo */
+      --pos-accent: #22c55e;  /* green */
+    }
+    body{ background: #f6f7fb; }
+    .navbar { backdrop-filter: saturate(180%) blur(8px); }
+    .navbar .navbar-brand { letter-spacing:.3px }
+    .card { border: 0; box-shadow: 0 6px 24px rgba(16,24,40,.06); }
+    .card-header { background: #fff; border-bottom: 1px solid #eef0f3; }
+    .product-card:hover { transform: translateY(-2px); transition: all .15s ease; box-shadow: 0 8px 28px rgba(16,24,40,.10); }
+    .badge-price { background: var(--pos-primary)!important; }
+    .btn-success{ background: var(--pos-accent); border-color: var(--pos-accent); }
+    .btn-primary{ background: var(--pos-primary); border-color: var(--pos-primary); }
+    .money-btns button { margin: .25rem; }
+    .sticky-cart{ position: sticky; top: 1rem; }
+    /* Barra fija de cobro en móvil */
+    .mobile-checkout-bar{
+      position: fixed; left:0; right:0; bottom:0; z-index:1030;
+      background:#fff; border-top:1px solid #e5e7eb; padding:.75rem 1rem;
+      box-shadow: 0 -6px 18px rgba(16,24,40,.08);
+    }
+    @media (min-width: 992px){ /* lg+ */
+      .mobile-checkout-bar{ display:none; }
+    }
+    @media (max-width: 991.98px){ /* <lg */
+      .desktop-checkout { display:none; }
+    }
+    /* Tablas lindas */
+    .table thead th{ font-weight:600; color:#6b7280; }
+    /* Inputs */
+    .form-control, .form-select{ border-radius: .75rem; }
+    .btn{ border-radius:.75rem; }
+    .card, .card img, .form-control, .form-select{ border-radius: 1rem; }
+  </style>
 </head>
-<body class="bg-light">
+<body>
 <nav class="navbar navbar-expand-lg bg-white border-bottom mb-3">
   <div class="container">
     <a class="navbar-brand fw-bold" href="/">POS</a>
-    <div class="navbar-nav me-auto">
-      <a class="nav-link" href="/pos/sell/">Vender</a>
-      <a class="nav-link" href="/pos/history/">Historial</a>
-      {% if request.user.is_staff %}
-        <a class="nav-link" href="/pos/manage/categories/">Admin. Categorías</a>
-        <a class="nav-link" href="/pos/manage/products/">Admin. Productos</a>
-      {% endif %}
-      <a class="nav-link" href="/admin/">Admin Django</a>
+    <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#topnav">
+      <span class="navbar-toggler-icon"></span>
+    </button>
+    <div id="topnav" class="collapse navbar-collapse">
+      <div class="navbar-nav me-auto">
+  <a class="nav-link" href="/pos/sell/">Vender</a>
+  <a class="nav-link" href="/pos/history/">Historial</a>
+  {% if request.user.is_staff %}
+    <a class="nav-link" href="{% url 'pos:manage_categories' %}">Categorías</a>
+    <a class="nav-link" href="{% url 'pos:manage_products' %}">Productos</a>
+  {% endif %}
+</div>
+
+      <div class="navbar-nav ms-auto">
+        {% if request.user.is_authenticated %}
+          <span class="navbar-text me-2">Hola, {{ request.user.username }}</span>
+          <form method="post" action="{% url 'logout' %}">
+            {% csrf_token %}
+            <button class="btn btn-outline-secondary btn-sm">Salir</button>
+          </form>
+        {% else %}
+          <a class="btn btn-primary btn-sm" href="{% url 'login' %}">Entrar</a>
+        {% endif %}
+      </div>
     </div>
-    <div class="navbar-nav ms-auto">
-      {% if request.user.is_authenticated %}
-        <span class="navbar-text me-2">Hola, {{ request.user.username }}</span>
-        <a class="nav-link" href="/accounts/logout/">Salir</a>
-      {% else %}
-        <a class="nav-link" href="/accounts/login/">Entrar</a>
-      {% endif %}
-    </div>
+    
   </div>
 </nav>
 
-<main class="container">
+<main class="container mb-5 pb-5">
   {% for m in messages %}
     <div class="alert alert-{{ m.tags|default:'info' }} mb-3">{{ m }}</div>
   {% endfor %}
   {% block content %}{% endblock %}
 </main>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 <script>
-function setCash(v){
-  const cash = document.getElementById('id_cash_given');
-  if(cash){ cash.value = (parseFloat(cash.value||0)+v).toFixed(2); }
-}
+  // Helper global para sumar efectivo desde botones
+  function addCash(amount){
+    const input = document.getElementById('id_cash_given');
+    if(!input) return;
+    const cur = parseFloat(input.value || "0") || 0;
+    input.value = (cur + amount).toFixed(2);
+    input.dispatchEvent(new Event('input', {bubbles:true}));
+  }
 </script>
 </body>
 </html>

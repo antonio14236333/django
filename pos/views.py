@@ -1,55 +1,25 @@
 from decimal import Decimal
-from django.shortcuts import render, redirect, get_object_or_404
-from django.contrib import messages
-from django.db import transaction
-from django.utils import timezone
-from .models import Category, Product, Sale, SaleItem
-from .forms import CheckoutForm, FilterForm
-from django.contrib.auth.decorators import login_required, user_passes_test
-from django.urls import reverse
-from .forms import CheckoutForm, FilterForm, CategoryForm, ProductForm
 
+from django.contrib import messages
+from django.contrib.auth.decorators import login_required, user_passes_test
+from django.db import transaction
+from django.shortcuts import get_object_or_404, redirect, render
+
+from .forms import CheckoutForm, FilterForm, CategoryForm, ProductForm
+from .models import Category, Product, Sale, SaleItem
+
+
+# ---------- Helpers ----------
+def _is_staff(user):
+    return user.is_authenticated and user.is_staff
 
 def _get_cart(request):
-    return request.session.get("cart", {})  # {product_id: qty}
+    """Carrito en sesión: {product_id: qty}"""
+    return request.session.get("cart", {})
 
 def _save_cart(request, cart):
     request.session["cart"] = cart
     request.session.modified = True
-
-def add_to_cart(request, product_id):
-    if request.method != "POST":
-        return redirect("pos:sell")
-    product = get_object_or_404(Product, id=product_id, active=True)
-    cart = _get_cart(request)
-    cart[str(product_id)] = cart.get(str(product_id), 0) + 1
-    _save_cart(request, cart)
-    return redirect("pos:sell")
-
-def decrease_from_cart(request, product_id):
-    if request.method != "POST":
-        return redirect("pos:sell")
-    cart = _get_cart(request)
-    pid = str(product_id)
-    if pid in cart:
-        cart[pid] -= 1
-        if cart[pid] <= 0:
-            cart.pop(pid)
-    _save_cart(request, cart)
-    return redirect("pos:sell")
-
-def remove_from_cart(request, product_id):
-    if request.method != "POST":
-        return redirect("pos:sell")
-    cart = _get_cart(request)
-    cart.pop(str(product_id), None)
-    _save_cart(request, cart)
-    return redirect("pos:sell")
-
-def clear_cart(request):
-    if request.method == "POST":
-        _save_cart(request, {})
-    return redirect("pos:sell")
 
 def _cart_context(request):
     cart = _get_cart(request)
@@ -64,6 +34,9 @@ def _cart_context(request):
             total += line_total
     return items, total.quantize(Decimal("0.01"))
 
+
+# ---------- POS: Venta ----------
+@login_required
 def sell_view(request):
     category_id = request.GET.get("cat")
     categories = Category.objects.filter(active=True)
@@ -78,13 +51,53 @@ def sell_view(request):
         "items": items,
         "total": total,
         "checkout_form": CheckoutForm(),
-        "selected_cat": int(category_id) if category_id else None
+        "selected_cat": int(category_id) if category_id else None,
     })
 
+@login_required
+def add_to_cart(request, product_id):
+    if request.method != "POST":
+        return redirect("pos:sell")
+    product = get_object_or_404(Product, id=product_id, active=True)
+    cart = _get_cart(request)
+    cart[str(product_id)] = cart.get(str(product_id), 0) + 1
+    _save_cart(request, cart)
+    return redirect("pos:sell")
+
+@login_required
+def decrease_from_cart(request, product_id):
+    if request.method != "POST":
+        return redirect("pos:sell")
+    cart = _get_cart(request)
+    pid = str(product_id)
+    if pid in cart:
+        cart[pid] -= 1
+        if cart[pid] <= 0:
+            cart.pop(pid)
+    _save_cart(request, cart)
+    return redirect("pos:sell")
+
+@login_required
+def remove_from_cart(request, product_id):
+    if request.method != "POST":
+        return redirect("pos:sell")
+    cart = _get_cart(request)
+    cart.pop(str(product_id), None)
+    _save_cart(request, cart)
+    return redirect("pos:sell")
+
+@login_required
+def clear_cart(request):
+    if request.method == "POST":
+        _save_cart(request, {})
+    return redirect("pos:sell")
+
+@login_required
 @transaction.atomic
 def checkout(request):
     if request.method != "POST":
         return redirect("pos:sell")
+
     items, total = _cart_context(request)
     if not items:
         messages.error(request, "El carrito está vacío.")
@@ -114,7 +127,8 @@ def checkout(request):
         cash_given=cash_given if method == "cash" else None,
         change=change if method == "cash" else None,
     )
-    # Guardar items
+
+    # Guardar items y bajar stock simple
     for it in items:
         SaleItem.objects.create(
             sale=sale,
@@ -122,14 +136,12 @@ def checkout(request):
             quantity=it["qty"],
             price=it["product"].price,
         )
-        # opcional: bajar stock simple
         if it["product"].stock > 0:
             it["product"].stock = max(0, it["product"].stock - it["qty"])
             it["product"].save(update_fields=["stock"])
 
     # Limpiar carrito
-    request.session["cart"] = {}
-    request.session.modified = True
+    _save_cart(request, {})
 
     if method == "card":
         messages.success(request, f"Venta #{sale.id} registrada. Cobra con Clip 💳.")
@@ -137,6 +149,9 @@ def checkout(request):
         messages.success(request, f"Venta #{sale.id} registrada. Cambio: ${change} 💵.")
     return redirect("pos:sell")
 
+
+# ---------- Historial ----------
+@login_required
 def history_view(request):
     form = FilterForm(request.GET or None)
     qs = Sale.objects.all()
@@ -148,7 +163,7 @@ def history_view(request):
         month = form.cleaned_data.get("month")
         year = form.cleaned_data.get("year")
 
-    if method in ("cash","card"):
+    if method in ("cash", "card"):
         qs = qs.filter(payment_method=method)
     if year:
         qs = qs.filter(created_at__year=year)
@@ -160,14 +175,15 @@ def history_view(request):
         "form": form,
         "sales": qs.select_related().order_by("-created_at")[:500],
         "total_sum": total_sum,
-        "sel_method": method, "sel_month": month, "sel_year": year
+        "sel_method": method,
+        "sel_month": month,
+        "sel_year": year,
     })
-def _is_staff(user):  # helper
-    return user.is_authenticated and user.is_staff
 
+
+# ---------- Gestión (solo staff) ----------
 @user_passes_test(_is_staff)
 def manage_categories(request):
-    from .models import Category
     if request.method == "POST":
         form = CategoryForm(request.POST)
         if form.is_valid():
@@ -181,10 +197,9 @@ def manage_categories(request):
 
 @user_passes_test(_is_staff)
 def delete_category(request, pk):
-    from .models import Category
     c = get_object_or_404(Category, pk=pk)
     try:
-        c.delete()  # on_delete PROTECT en Product impedirá borrar si tiene productos
+        c.delete()  # on_delete=PROTECT en Product impedirá borrar si tiene productos
         messages.success(request, "Categoría eliminada.")
     except Exception as e:
         messages.error(request, f"No se puede eliminar: {e}")
@@ -192,7 +207,6 @@ def delete_category(request, pk):
 
 @user_passes_test(_is_staff)
 def manage_products(request):
-    from .models import Product
     if request.method == "POST":
         form = ProductForm(request.POST)
         if form.is_valid():
@@ -206,7 +220,6 @@ def manage_products(request):
 
 @user_passes_test(_is_staff)
 def delete_product(request, pk):
-    from .models import Product
     p = get_object_or_404(Product, pk=pk)
     p.delete()
     messages.success(request, "Producto eliminado.")

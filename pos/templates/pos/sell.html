@@ -1,48 +1,68 @@
 {% extends "base.html" %}
 {% block content %}
 <div class="row g-3">
+  
   <div class="col-lg-8">
-    <div class="mb-2 d-flex flex-wrap gap-2">
-      <a class="btn btn-outline-secondary {% if not selected_cat %}active{% endif %}" href="?">Todas</a>
-      {% for c in categories %}
-        <a class="btn btn-outline-secondary {% if selected_cat == c.id %}active{% endif %}" href="?cat={{ c.id }}">{{ c.name }}</a>
-      {% endfor %}
-    </div>
-    <div class="row row-cols-2 row-cols-md-3 g-3">
-      {% for p in products %}
-      <div class="col">
-        <div class="card h-100 product-card">
-          <div class="card-body">
-            <h6 class="card-title">{{ p.name }}</h6>
-            <p class="card-text mb-2"><span class="badge text-bg-primary">${{ p.price }}</span></p>
-            <form method="post" action="{% url 'pos:add' p.id %}">
-              {% csrf_token %}
-              <button class="btn btn-sm btn-success w-100">Agregar</button>
-            </form>
+    <div class="card">
+      <div class="card-body">
+        
+        <div class="d-flex flex-wrap gap-2 mb-3">
+          <a class="btn btn-outline-secondary {% if not selected_cat %}active{% endif %}" href="?">Todas</a>
+          {% for c in categories %}
+            <a class="btn btn-outline-secondary {% if selected_cat == c.id %}active{% endif %}" href="?cat={{ c.id }}">{{ c.name }}</a>
+          {% endfor %}
+        </div>
+
+        
+        <div class="row row-cols-2 row-cols-md-3 row-cols-xl-4 g-3">
+          {% for p in products %}
+          <div class="col">
+            <div class="card h-100 product-card">
+              <div class="card-body d-flex flex-column">
+                <div class="d-flex justify-content-between align-items-start">
+                  <h6 class="card-title mb-2">{{ p.name }}</h6>
+                  <span class="badge text-bg-primary">${{ p.price }}</span>
+                </div>
+                <div class="mt-auto">
+                  <form method="post" action="{% url 'pos:add' p.id %}">
+                    {% csrf_token %}
+                    <button class="btn btn-success w-100">Agregar</button>
+                  </form>
+                </div>
+              </div>
+            </div>
           </div>
+          {% empty %}
+            <div class="col-12"><p class="text-muted">No hay productos.</p></div>
+          {% endfor %}
         </div>
       </div>
-      {% empty %}
-      <p class="text-muted">No hay productos.</p>
-      {% endfor %}
     </div>
   </div>
+  
   <div class="col-lg-4">
-    <div class="card">
-      <div class="card-header">Carrito</div>
+    <div class="card sticky-cart">
+      <div class="card-header d-flex justify-content-between align-items-center">
+        <span>Carrito</span>
+        <span class="badge text-bg-light">{{ items|length }} items</span>
+      </div>
       <div class="card-body">
         {% if items %}
           <div class="table-responsive">
-            <table class="table table-sm">
+            <table class="table table-sm align-middle">
               <thead><tr><th>Producto</th><th class="text-end">Cant</th><th class="text-end">Subtotal</th><th></th></tr></thead>
               <tbody>
               {% for it in items %}
                 <tr>
-                  <td>{{ it.product.name }}</td>
-                  <td class="text-end">
-                    <form method="post" action="{% url 'pos:dec' it.product.id %}" class="d-inline">{% csrf_token %}<button class="btn btn-sm btn-outline-secondary">−</button></form>
+                  <td class="w-50">{{ it.product.name }}</td>
+                  <td class="text-end" style="white-space:nowrap;">
+                    <form method="post" action="{% url 'pos:dec' it.product.id %}" class="d-inline">{% csrf_token %}
+                      <button class="btn btn-sm btn-outline-secondary">−</button>
+                    </form>
                     <span class="mx-1">{{ it.qty }}</span>
-                    <form method="post" action="{% url 'pos:add' it.product.id %}" class="d-inline">{% csrf_token %}<button class="btn btn-sm btn-outline-secondary">+</button></form>
+                    <form method="post" action="{% url 'pos:add' it.product.id %}" class="d-inline">{% csrf_token %}
+                      <button class="btn btn-sm btn-outline-secondary">+</button>
+                    </form>
                   </td>
                   <td class="text-end">${{ it.line_total }}</td>
                   <td class="text-end">
@@ -55,91 +75,151 @@
               </tbody>
             </table>
           </div>
+
+          
           <div class="d-flex justify-content-between border-top pt-2">
             <strong>Total</strong>
-            <strong>${{ total }}</strong>
+            <strong id="cart-total-display">${{ total }}</strong>
+            <input type="hidden" id="cart-total" value="{{ total }}">
           </div>
           <hr>
-          <form method="post" action="{% url 'pos:checkout' %}">
+
+          
+          <form id="checkout-form" method="post" action="{% url 'pos:checkout' %}">
             {% csrf_token %}
-            <div class="mb-2">
-              {{ checkout_form.payment_method.label_tag }}<br>
-              {{ checkout_form.payment_method }}
+            <div class="mb-3">
+              <label class="form-label d-block mb-1">Método de pago</label>
+              <div class="d-flex gap-3">
+                {{ checkout_form.payment_method }}
+              </div>
             </div>
+
             <div id="cash-area" class="mb-2">
               <label for="id_cash_given" class="form-label">Efectivo recibido</label>
               {{ checkout_form.cash_given }}
-              <div class="money-btns mt-2">
-                <button type="button" class="btn btn-outline-secondary btn-sm" onclick="setCash(20)">+$20</button>
-                <button type="button" class="btn btn-outline-secondary btn-sm" onclick="setCash(50)">+$50</button>
-                <button type="button" class="btn btn-outline-secondary btn-sm" onclick="setCash(100)">+$100</button>
-                <button type="button" class="btn btn-outline-secondary btn-sm" onclick="setCash(200)">+$200</button>
-                <button type="button" class="btn btn-outline-secondary btn-sm" onclick="setCash(500)">+$500</button>
+              <div class="money-btns mt-2 d-none d-lg-block">
+                
+                <button type="button" class="btn btn-outline-secondary btn-sm cash-add" data-amt="20">+$20</button>
+                <button type="button" class="btn btn-outline-secondary btn-sm cash-add" data-amt="50">+$50</button>
+                <button type="button" class="btn btn-outline-secondary btn-sm cash-add" data-amt="100">+$100</button>
+                <button type="button" class="btn btn-outline-secondary btn-sm cash-add" data-amt="200">+$200</button>
+                <button type="button" class="btn btn-outline-secondary btn-sm cash-add" data-amt="500">+$500</button>
               </div>
               <div id="cash-hint" class="form-text"></div>
             </div>
 
-            <div class="d-flex gap-2">
-              <button class="btn btn-primary w-100" type="submit">Registrar venta</button>
-              <form method="post" action="{% url 'pos:clear' %}">{% csrf_token %}
-                <button class="btn btn-outline-secondary">Vaciar</button>
-              </form>
+            <div class="d-grid">
+              <button class="btn btn-primary btn-lg" type="submit">Registrar venta</button>
             </div>
           </form>
-          <script>
-            // Mostrar/ocultar efectivo según método seleccionado
-            (function(){
-              const radios = document.querySelectorAll('input[name="payment_method"]');
-              const cashArea = document.getElementById('cash-area');
-              function toggle() {
-                const v = Array.from(radios).find(r=>r.checked)?.value;
-                cashArea.style.display = (v === 'cash') ? 'block' : 'none';
-              }
-              radios.forEach(r=>r.addEventListener('change', toggle));
-              toggle();
-            })();
-          </script>
-          <script>
-            (function(){
-              const total = parseFloat('{{ total|floatformat:2 }}');
-              const cashInput = document.getElementById('id_cash_given');
-              const hint = document.getElementById('cash-hint');
-              const radios = document.querySelectorAll('input[name="payment_method"]');
 
-              function updateHint(){
-                if(!cashInput) return;
-                const v = parseFloat(cashInput.value || 0);
-                if (isNaN(v)) { hint.textContent = ''; return; }
-                const diff = (v - total);
-                if (diff >= 0) {
-                  hint.textContent = 'Cambio estimado: $' + diff.toFixed(2);
-                } else {
-                  hint.textContent = 'Falta: $' + Math.abs(diff).toFixed(2);
-                }
-              }
-
-              // Solo mostrar/actualizar si es efectivo
-              function toggle(){
-                const method = Array.from(radios).find(r=>r.checked)?.value;
-                const cashArea = document.getElementById('cash-area');
-                const show = (method === 'cash');
-                if (cashArea) cashArea.style.display = show ? 'block' : 'none';
-                if (show) updateHint();
-              }
-
-              if (cashInput) {
-                cashInput.addEventListener('input', updateHint);
-              }
-              radios.forEach(r=>r.addEventListener('change', toggle));
-              toggle(); // init
-            })();
-        </script>
-
+          
+          <form class="mt-2" method="post" action="{% url 'pos:clear' %}">
+            {% csrf_token %}
+            <button class="btn btn-outline-secondary w-100" type="submit">Vaciar</button>
+          </form>
         {% else %}
-          <p class="text-muted">Agrega productos para iniciar una venta.</p>
+          <p class="text-muted mb-0">Agrega productos para iniciar una venta.</p>
         {% endif %}
       </div>
     </div>
   </div>
 </div>
+
+
+<script>
+(function(){
+  const total = parseFloat(document.getElementById('cart-total')?.value || "0") || 0;
+
+  
+  const radiosReal = document.querySelectorAll('input[name="payment_method"]');
+  const cashReal   = document.getElementById('id_cash_given');
+  const hintReal   = document.getElementById('cash-hint');
+  const cashArea   = document.getElementById('cash-area');
+
+  
+  const pmCash   = document.getElementById('pm_cash');
+  const pmCard   = document.getElementById('pm_card');
+  const cashProxy = document.getElementById('cash_proxy');
+  const hintMob   = document.getElementById('cash-hint-mobile');
+  const cashAreaMob = document.getElementById('cash-area-mobile');
+
+  const addBtns = document.querySelectorAll('.cash-add');
+  const submitReal = document.getElementById('submit-real');
+
+  function getMethodReal(){
+    return Array.from(radiosReal).find(r=>r.checked)?.value || 'cash';
+  }
+  function setMethodReal(val){
+    const target = Array.from(radiosReal).find(r=>r.value === val);
+    if (target) { target.checked = true; target.dispatchEvent(new Event('change', {bubbles:true})); }
+  }
+  function toggleCashAreas(isCash){
+    if (cashArea) cashArea.style.display = isCash ? 'block' : 'none';
+    if (cashAreaMob) cashAreaMob.style.display = isCash ? 'block' : 'none';
+  }
+  function updateHints(){
+    const val = parseFloat((cashReal?.value)||"0") || 0;
+    const diff = val - total;
+    const text = isNaN(val) ? "" : (diff>=0 ? ("Cambio estimado: $"+diff.toFixed(2)) : ("Falta: $"+Math.abs(diff).toFixed(2)));
+    if (hintReal) hintReal.textContent = text;
+    if (hintMob)  hintMob.textContent  = text;
+  }
+  function syncProxyFromReal(){
+    const m = getMethodReal();
+    if (pmCash) pmCash.checked = (m === 'cash');
+    if (pmCard) pmCard.checked = (m === 'card');
+    if (cashProxy && cashReal) cashProxy.value = cashReal.value || '';
+    updateHints();
+  }
+  function syncRealFromProxy(){
+    const m = (pmCash?.checked) ? 'cash' : 'card';
+    setMethodReal(m);
+    if (cashProxy && cashReal){
+      cashReal.value = cashProxy.value || '';
+      cashReal.dispatchEvent(new Event('input', {bubbles:true}));
+    }
+    updateHints();
+  }
+
+  
+  radiosReal.forEach(r => r.addEventListener('change', function(){
+    toggleCashAreas(this.value === 'cash');
+    updateHints();
+    syncProxyFromReal();
+  }));
+  if (cashReal) cashReal.addEventListener('input', function(){
+    if (cashProxy) cashProxy.value = this.value;
+    updateHints();
+  });
+
+  
+  [pmCash, pmCard].forEach(el => el && el.addEventListener('change', syncRealFromProxy));
+  if (cashProxy) cashProxy.addEventListener('input', syncRealFromProxy);
+
+  
+  addBtns.forEach(btn=>{
+    btn.addEventListener('click', ()=>{
+      const amt = parseFloat(btn.dataset.amt||"0")||0;
+      const current = parseFloat((cashReal?.value)||"0")||0;
+      const next = (current + amt).toFixed(2);
+      if (cashReal)  { cashReal.value  = next; cashReal.dispatchEvent(new Event('input',{bubbles:true})); }
+      if (cashProxy) { cashProxy.value = next; }
+      updateHints();
+    });
+  });
+
+  
+  if (submitReal){
+    submitReal.addEventListener('click', function(){
+      syncRealFromProxy();
+      document.getElementById('checkout-form')?.submit();
+    });
+  }
+  
+  toggleCashAreas(getMethodReal()==='cash');
+  syncProxyFromReal();
+  updateHints();
+})();
+</script>
 {% endblock %}
