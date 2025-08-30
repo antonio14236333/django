@@ -1,0 +1,25 @@
+{% extends 'pos/base.html' %}
+{% block title %}Productos{% endblock %}
+{% block content %}
+<h1 class="text-2xl mb-4">Productos</h1>
+<a href="{% url 'pos:product_create' %}" class="bg-blue-500 text-white px-2 py-1">Nuevo</a>
+<table class="mt-4 w-full">
+  <tr><th>ID</th><th>Nombre</th><th>Categoría</th><th>Precio</th><th>Activo</th><th></th></tr>
+  {% for p in products %}
+  <tr class="border-t">
+    <td>{{ p.id }}</td>
+    <td>{{ p.name }}</td>
+    <td>{{ p.category.name }}</td>
+    <td>{{ p.price }}</td>
+    <td>{{ p.active }}</td>
+    <td>
+      <a href="{% url 'pos:product_update' p.id %}" class="text-blue-600">Editar</a>
+      <form action="{% url 'pos:product_delete' p.id %}" method="post" class="inline">
+        {% csrf_token %}
+        <button class="text-red-600" onclick="return confirm('¿Eliminar?')">Eliminar</button>
+      </form>
+    </td>
+  </tr>
+  {% endfor %}
+</table>
+{% endblock %}

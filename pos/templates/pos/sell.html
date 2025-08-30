@@ -1,0 +1,89 @@
+{% extends 'pos/base.html' %}
+{% block title %}Venta{% endblock %}
+{% block content %}
+<h1 class="text-2xl mb-4">Venta</h1>
+<div class="flex">
+  <div class="w-2/3 pr-4">
+    {% for c in categories %}
+    <h2 class="text-xl mt-4">{{ c.name }}</h2>
+    <div class="grid grid-cols-3 gap-2">
+      {% for p in c.products %}
+      <button type="button" class="border p-2" onclick="addProduct({{ p.id }}, '{{ p.name }}', {{ p.price }})">
+        <p>{{ p.name }}</p>
+        <p class="text-sm">${{ p.price }}</p>
+      </button>
+      {% endfor %}
+    </div>
+    {% endfor %}
+  </div>
+  <div class="w-1/3">
+    <h2 class="text-xl mb-2">Carrito</h2>
+    <div id="cart"></div>
+    <p class="mt-2">Total: $<span id="total">0</span></p>
+    <form method="post" onsubmit="prepareCart()" class="mt-4">
+      {% csrf_token %}
+      <input type="hidden" name="cart" id="cart-input">
+      <div class="mt-2">
+        <label><input type="radio" name="payment_type" value="CASH" checked onchange="togglePayment()"> Efectivo</label>
+        <label class="ml-4"><input type="radio" name="payment_type" value="CARD" onchange="togglePayment()"> Tarjeta</label>
+      </div>
+      <div id="cash-area" class="mt-4">
+        <div class="space-x-2 mb-2">
+          <button type="button" class="px-2 py-1 border" onclick="setCash(20)">20</button>
+          <button type="button" class="px-2 py-1 border" onclick="setCash(50)">50</button>
+          <button type="button" class="px-2 py-1 border" onclick="setCash(100)">100</button>
+          <button type="button" class="px-2 py-1 border" onclick="setCash(200)">200</button>
+          <button type="button" class="px-2 py-1 border" onclick="setCash(500)">500</button>
+          <button type="button" class="px-2 py-1 border" onclick="setCash(1000)">1000</button>
+        </div>
+        <input type="number" name="cash_received" id="cash-received" class="border p-1 w-full" placeholder="Efectivo recibido" oninput="calcChange()">
+        <p>Cambio: $<span id="change">0</span></p>
+      </div>
+      <div id="card-area" class="mt-4 hidden">
+        <button type="button" class="bg-indigo-500 text-white px-4 py-2">Cobrar con Clip</button>
+      </div>
+      <button class="bg-green-500 text-white px-4 py-2 mt-4 w-full">Guardar</button>
+    </form>
+  </div>
+</div>
+<script>
+let cart = [];
+function addProduct(id, name, price) {
+  const item = cart.find(i => i.id === id);
+  if (item) { item.qty += 1; }
+  else { cart.push({id, name, price, qty:1}); }
+  renderCart();
+}
+function renderCart() {
+  const cartDiv = document.getElementById('cart');
+  cartDiv.innerHTML = '';
+  let total = 0;
+  cart.forEach((item, idx) => {
+    const line = document.createElement('div');
+    line.className = 'flex justify-between';
+    line.innerHTML = `<span>${item.name} x${item.qty}</span><span>$${(item.price*item.qty).toFixed(2)}</span>`;
+    cartDiv.appendChild(line);
+    total += item.price * item.qty;
+  });
+  document.getElementById('total').innerText = total.toFixed(2);
+  calcChange();
+}
+function prepareCart() {
+  document.getElementById('cart-input').value = JSON.stringify(cart);
+}
+function togglePayment() {
+  const type = document.querySelector('input[name="payment_type"]:checked').value;
+  document.getElementById('cash-area').classList.toggle('hidden', type !== 'CASH');
+  document.getElementById('card-area').classList.toggle('hidden', type !== 'CARD');
+}
+function setCash(v) {
+  document.getElementById('cash-received').value = v;
+  calcChange();
+}
+function calcChange() {
+  const total = parseFloat(document.getElementById('total').innerText) || 0;
+  const cash = parseFloat(document.getElementById('cash-received').value) || 0;
+  document.getElementById('change').innerText = (cash - total).toFixed(2);
+}
+</script>
+{% endblock %}

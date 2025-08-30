@@ -1,0 +1,27 @@
+{% extends 'pos/base.html' %}
+{% block title %}Historial{% endblock %}
+{% block content %}
+<h1 class="text-2xl mb-4">Historial</h1>
+<form method="get" class="flex space-x-2 mb-4">
+  <select name="payment_type" class="border p-1">
+    <option value="">Todos</option>
+    {% for p in PaymentType %}
+    <option value="{{ p }}" {% if filters.payment_type == p %}selected{% endif %}>{{ p }}</option>
+    {% endfor %}
+  </select>
+  <input type="number" name="month" placeholder="Mes" value="{{ filters.month }}" class="border p-1 w-20">
+  <input type="number" name="year" placeholder="Año" value="{{ filters.year }}" class="border p-1 w-24">
+  <button class="bg-blue-500 text-white px-2">Filtrar</button>
+</form>
+<table class="w-full">
+  <tr><th>Fecha</th><th>Método</th><th>Total</th></tr>
+  {% for s in sales %}
+  <tr class="border-t">
+    <td>{{ s.sale.created_at }}</td>
+    <td>{{ s.sale.payment_type }}</td>
+    <td>${{ s.total }}</td>
+  </tr>
+  {% endfor %}
+</table>
+<p class="mt-4">Total: ${{ total }}</p>
+{% endblock %}
