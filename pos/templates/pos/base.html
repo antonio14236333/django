@@ -1,0 +1,17 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <title>{% block title %}POS{% endblock %}</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="p-4">
+  <nav class="mb-4 space-x-4">
+    <a href="{% url 'pos:category_list' %}">Categorías</a>
+    <a href="{% url 'pos:product_list' %}">Productos</a>
+    <a href="{% url 'pos:sell' %}">Vender</a>
+    <a href="{% url 'pos:history' %}">Historial</a>
+  </nav>
+  {% block content %}{% endblock %}
+</body>
+</html>

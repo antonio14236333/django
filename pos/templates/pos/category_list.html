@@ -1,0 +1,23 @@
+{% extends 'pos/base.html' %}
+{% block title %}Categorías{% endblock %}
+{% block content %}
+<h1 class="text-2xl mb-4">Categorías</h1>
+<a href="{% url 'pos:category_create' %}" class="bg-blue-500 text-white px-2 py-1">Nueva</a>
+<table class="mt-4 w-full">
+  <tr><th>ID</th><th>Nombre</th><th>Activo</th><th></th></tr>
+  {% for c in categories %}
+  <tr class="border-t">
+    <td>{{ c.id }}</td>
+    <td>{{ c.name }}</td>
+    <td>{{ c.active }}</td>
+    <td>
+      <a href="{% url 'pos:category_update' c.id %}" class="text-blue-600">Editar</a>
+      <form action="{% url 'pos:category_delete' c.id %}" method="post" class="inline">
+        {% csrf_token %}
+        <button class="text-red-600" onclick="return confirm('¿Eliminar?')">Eliminar</button>
+      </form>
+    </td>
+  </tr>
+  {% endfor %}
+</table>
+{% endblock %}
